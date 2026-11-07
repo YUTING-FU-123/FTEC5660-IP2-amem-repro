@@ -1,3 +1,9 @@
+> **FTEC5660 Individual Project 2 — Reproducibility (YUTING FU, 1155265979).**
+> This fork reproduces the paper's LoCoMo results with a DeepSeek backend, adds an
+> ablation switch for the memory-evolution step, and ships the write-up.
+> Start at **[REPRO.md](REPRO.md)**; the final report is
+> [`report/FTEC5660_IP2_Reproducibility_YutingFu.pdf`](report/FTEC5660_IP2_Reproducibility_YutingFu.pdf).
+
 # Agentic Memory 🧠
 
 A novel agentic memory system for LLM agents that can dynamically organize memories in an agentic way.
