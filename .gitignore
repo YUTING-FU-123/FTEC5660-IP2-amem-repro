@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.DS_Store
+
+# memory / retrieval caches built at runtime
+cached_memories_*/
+cached_memories_robust_*/
+
+# run artefacts
+logs/
+results/
+repro/out/
+repro/datasets/
+.env
+*.pkl
+*.npy
