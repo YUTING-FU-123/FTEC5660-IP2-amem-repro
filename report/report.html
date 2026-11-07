@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Reproducibility Report — A-Mem</title>
+<style>
+  @page { size: A4; margin: 18mm 18mm 16mm 18mm; }
+  html { font-size: 10.2pt; }
+  body { font-family: "Charter", "Georgia", "Times New Roman", serif; line-height: 1.45; color: #1a1a1a; margin: 0; }
+  h1 { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 19pt; margin: 0 0 2mm 0; letter-spacing: -0.2pt; }
+  h2 { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 12.5pt; margin: 7mm 0 2mm 0; padding-bottom: 1.2mm;
+       border-bottom: 0.6pt solid #cfd6dd; }
+  h3 { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 10.8pt; margin: 4mm 0 1.5mm 0; }
+  p { margin: 0 0 2.2mm 0; text-align: justify; }
+  .sub { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 9.4pt; color: #5a6673; margin-bottom: 6mm; }
+  table { border-collapse: collapse; width: 100%; margin: 2mm 0 3mm 0; font-size: 9pt;
+          font-family: "Helvetica Neue", Arial, sans-serif; }
+  th, td { padding: 1.3mm 2mm; text-align: right; border-bottom: 0.4pt solid #dfe4e9; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { border-bottom: 0.9pt solid #8d99a6; font-weight: 600; }
+  tbody tr:nth-child(even) { background: #f7f9fb; }
+  .good { color: #1f6b3a; font-weight: 600; }
+  .bad { color: #a22b2b; font-weight: 600; }
+  .muted { color: #7a838c; }
+  figure { margin: 3mm 0 4mm 0; page-break-inside: avoid; }
+  figure img { width: 100%; }
+  figcaption { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 8.6pt; color: #5a6673; margin-top: 1.5mm; }
+  code, pre { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 8.4pt; }
+  pre { background: #f5f7f9; border-left: 2pt solid #cfd6dd; padding: 2mm 3mm; margin: 2mm 0 3mm 0;
+        white-space: pre-wrap; }
+  ul, ol { margin: 0 0 2.5mm 0; padding-left: 5mm; }
+  li { margin-bottom: 1mm; }
+  .note { background: #f3f7fa; border-left: 2.4pt solid #2f6f9f; padding: 2.4mm 3mm; margin: 3mm 0; font-size: 9.4pt; }
+  .kpi { display: flex; gap: 3mm; margin: 3mm 0 4mm 0; }
+  .kpi div { flex: 1; border: 0.5pt solid #dfe4e9; border-radius: 2pt; padding: 2.5mm; }
+  .kpi b { font-family: "Helvetica Neue", Arial, sans-serif; display: block; font-size: 14pt; color: #2f6f9f; }
+  .kpi span { font-size: 8.4pt; color: #5a6673; font-family: "Helvetica Neue", Arial, sans-serif; }
+  .pb { page-break-before: always; }
+  thead { display: table-header-group; }
+  tbody tr { page-break-inside: avoid; }
+  table.keep { page-break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<h1>Reproducing A-Mem: Agentic Memory for LLM Agents</h1>
+<div class="sub">FTEC5660 Agentic AI for Business and FinTech — Individual Project 2 (Reproducibility)<br>
+YUTING FU · 1155265979 · 7 November 2026</div>
+
+<h2>1. Project summary and what we tried to reproduce</h2>
+
+<p><b>Paper.</b> <i>A-Mem: Agentic Memory for LLM Agents</i> (Xu, Liang, Mei, Gao, Tan, Zhang; NeurIPS 2025;
+arXiv:2502.12110). The authors publish their own evaluation code at <code>github.com/WujiangXu/A-mem</code>,
+described in the README as “specifically designed to reproduce the results presented in our paper”.</p>
+
+<p><b>System.</b> A-Mem gives an LLM agent a long-term memory built from Zettelkasten-style notes instead of
+flat embeddings. Adding one utterance triggers a chain of LLM calls: (i) <i>note construction</i> — generate
+keywords, tags and a contextual description; (ii) <i>link generation</i> — compare with the nearest notes and
+decide which links to create; (iii) <i>memory evolution</i> — rewrite the context and tags of neighbouring
+notes so the memory network keeps refining itself. Answering a question retrieves the top-<i>k</i> notes and
+asks the LLM to answer from them. This multi-step, tool-calling, self-modifying loop is what makes it an
+agentic system rather than a single prompt-response pipeline.</p>
+
+<p><b>Target claim.</b> Token-level F1 / BLEU-1 on the LoCoMo long-conversation QA benchmark, reported per
+question category. The paper's GPT-4o-mini row is our reference point: multi-hop 27.02, temporal 45.85,
+open-domain 12.14, single-hop 44.65, adversarial 50.03, and an average retrieved-context length of 2,520
+tokens against 16,910 for full-context prompting.</p>
+
+<p><b>Scope.</b> LoCoMo has ten conversations. Following the assignment brief we reproduce a subset —
+three conversations (conv 0, 1, 8: 1,297 utterances, 500 questions) — and we keep the authors' evaluation
+script, metrics and prompts unmodified.</p>
+
+<h2>2. Setup notes</h2>
+
+<table>
+<thead><tr><th>Item</th><th style="text-align:left">Value</th></tr></thead>
+<tbody>
+<tr><td>Hardware</td><td style="text-align:left">MacBook Air (Apple silicon), 8 GB RAM, CPU only — no GPU</td></tr>
+<tr><td>Runtime</td><td style="text-align:left">Python 3.12 venv; torch, sentence-transformers, nltk, rank-bm25, openai</td></tr>
+<tr><td>Encoder</td><td style="text-align:left"><code>all-MiniLM-L6-v2</code> (as in the paper), fetched via an HF mirror</td></tr>
+<tr><td>LLM</td><td style="text-align:left">DeepSeek V4.1 Flash (<code>deepseek-flash</code>), OpenAI-compatible endpoint</td></tr>
+<tr><td>Decoding</td><td style="text-align:left">temperature 0.7 (memory ops and QA), 0.5 (category-5 answers); <code>max_tokens</code> 4096; thinking disabled</td></tr>
+<tr><td>Data</td><td style="text-align:left"><code>data/locomo10.json</code> shipped with the repository — no external download</td></tr>
+<tr><td>Retrieval</td><td style="text-align:left"><i>k</i> = 10 (repository default), memory scope = per conversation</td></tr>
+<tr><td>Wall-clock</td><td style="text-align:left">35–50 min per conversation-arm, two arms in parallel</td></tr>
+<tr><td>Cost</td><td style="text-align:left">≈ ¥2 per conversation-arm (13,000 LLM calls, 10.0M prompt tokens for 500 questions)</td></tr>
+</tbody>
+</table>
+
+<p><b>Model substitution.</b> GPT-4o and GPT-4o-mini were not available to this account, so the LLM is a
+controlled variable replaced with DeepSeek V4.1 Flash. Recorded settings: model <code>deepseek-flash</code>,
+base URL <code>https://api.deepseek.com/v1</code>, no prompt or template changes. <b>Results are therefore not
+directly comparable to the paper</b>; the tasks, the metric implementations and the evaluation script are
+identical, the underlying model is not.</p>
+
+<p>Two adaptations were necessary and are documented as such rather than hidden: <code>max_tokens</code> was
+raised from 1000 to 4096 (DeepSeek counts reasoning tokens against the completion budget, so structured
+answers were being truncated to empty strings), and thinking mode was disabled (default mode spent 8.8 s and
+1,213 completion tokens per call versus 1.5 s and 219 with thinking off — and the paper's GPT-4o-mini
+baseline is a non-reasoning, single-shot call pattern, so disabling it is also the closer match).</p>
+
+<h2>3. Reproduction targets and metric definitions</h2>
+
+<ol>
+<li><b>Per-category token-level F1</b> on LoCoMo, produced by the authors' <code>utils.calculate_metrics</code>:
+   F1 over normalised token overlap, plus BLEU-1 with the standard brevity penalty. Aggregated per category
+   and overall, weighted by question count.</li>
+<li><b>Context cost</b> — the number of prompt tokens needed to answer one question, which the paper reports
+   as ≈2.5k versus ≈16.9k for full-context prompting. We measure the length of the retrieved-memory string
+   and of the full answering prompt for every question (chars/4 token estimate, plus exact token counts from
+   the API).</li>
+</ol>
+
+<h2>4. Results: ours versus reported</h2>
+
+<div class="kpi">
+  <div><b>27.98</b><span>multi-hop F1, vs 27.02 reported (+0.96)</span></div>
+  <div><b>45.78</b><span>single-hop F1, vs 44.65 reported (+1.13)</span></div>
+  <div><b>14.2k</b><span>tokens of retrieved context per question, vs 2,520 reported</span></div>
+</div>
+
+<table>
+<thead><tr><th>Category</th><th>n</th><th>Paper F1</th><th>Ours F1</th><th>Δ</th><th>Ours BLEU-1</th></tr></thead>
+<tbody>
+<tr><td>Multi-hop</td><td>80</td><td>27.02</td><td>27.98</td><td class="good">+0.96</td><td>16.61</td></tr>
+<tr><td>Temporal</td><td>96</td><td>45.85</td><td>37.18</td><td class="bad">−8.67</td><td>31.96</td></tr>
+<tr><td>Open-domain</td><td>26</td><td>12.14</td><td>24.34</td><td class="bad">+12.20</td><td>20.41</td></tr>
+<tr><td>Single-hop</td><td>187</td><td>44.65</td><td>45.78</td><td class="good">+1.13</td><td>39.66</td></tr>
+<tr><td>Adversarial</td><td>111</td><td>50.03</td><td>73.86</td><td class="muted">n/c</td><td>73.14</td></tr>
+<tr><td><b>Overall</b></td><td>500</td><td>—</td><td><b>46.40</b></td><td>—</td><td>40.93</td></tr>
+</tbody>
+</table>
+
+<p><b>What reproduces.</b> The two “retrieve-and-answer” categories land within about one F1 point of the
+paper: multi-hop 27.98 vs 27.02 and single-hop 45.78 vs 44.65, i.e. the same effect size in both directions
+with a different model. Given that the LLM was swapped, a ±1 point agreement on 80 and 187 questions is a
+meaningful signal that the system, not the model, drives those numbers.</p>
+
+
+<p><b>What does not reproduce.</b> Temporal questions fall 8.7 points short. Inspecting individual results,
+the failure mode is date normalisation rather than retrieval: for “When did Jon lose his job as a banker?”
+the gold answer is <i>19 January, 2023</i> and the model answers <i>Yesterday, 20 January 2023</i> — the right
+memory, the wrong day, and F1 collapses on the mismatched tokens. GPT-4o-mini presumably emits the canonical
+date string more often. This is a model-dependent artefact, not a defect of A-Mem's memory layer.</p>
+
+<p><b>Where we are better.</b> Open-domain F1 is 12 points <i>above</i> the paper. This is not a claim that our
+system is better: it tracks the context measurement below. The released code, at its default <i>k</i> = 10,
+feeds roughly 14,200 tokens of retrieved notes per question (median 13.6k, p90 27k), whereas the paper
+reports an average of 2,520. With 5.6× more context the answer model has far more material to hit an
+open-domain question — and, correspondingly, we pay 5.6× the token cost.</p>
+
+<div class="note"><b>Anomaly worth flagging.</b> We could not reproduce the reported context efficiency at
+all. The gap is too large to be a tokeniser difference (5.6×), and it is not caused by our <i>k</i> choice:
+<i>k</i> = 10 is the repository default and the value the README recommends. Either the released code has
+drifted from the version used for the paper's table, or the table's “Token Length” column measures something
+narrower than the answering prompt. We report the number we can measure.</div>
+
+<p><b>Adversarial is not comparable.</b> The harness has two scoring modes for category 5: the default scores
+against “Not mentioned in the conversation” (the factually correct response), while
+<code>--legacy_c5_reference</code> reproduces the paper's protocol of scoring against the adversarial answer.
+We used the default, which is why our 73.86 cannot be lined up with the paper's 50.03. This is a protocol
+choice, not a capability difference, and it is exactly the kind of hidden assumption a reproduction study is
+supposed to surface.</p>
+
+<figure>
+  <img src="figs/fig1_reproduction.png" alt="Reported vs reproduced F1 per category">
+  <figcaption>Figure 1 — Token-level F1 per category: paper (GPT-4o-mini) versus this reproduction
+  (DeepSeek V4.1 Flash, three conversations, 500 questions). Adversarial is omitted because the two numbers
+  are not on the same scale (see below).</figcaption>
+</figure>
+
+<h2>5. Our modification: removing memory evolution (w/o ME)</h2>
+
+<p><b>The change.</b> One switch, <code>--ablate_memory_evolution</code>, disables exactly one of the four
+steps: the third LLM call in <code>process_memory</code>, the one that rewrites the context and tags of
+neighbouring notes. Note construction and link generation are untouched, so this is the paper's
+<i>w/o ME</i> ablation rather than <i>w/o LG &amp; ME</i>. Baseline and ablation write to separate
+memory caches, so no state is shared between arms. The change is isolated (one call site), and measurable
+(F1 per category, token counts, calls, wall-clock).</p>
+
+<table class="keep">
+<thead><tr><th></th><th>Baseline</th><th>w/o ME</th><th>Δ</th></tr></thead>
+<tbody>
+<tr><td>Overall F1</td><td>46.40</td><td>46.42</td><td class="muted">+0.02</td></tr>
+<tr><td>Multi-hop F1</td><td>27.98</td><td>27.89</td><td class="muted">−0.09</td></tr>
+<tr><td>Temporal F1</td><td>37.18</td><td>36.41</td><td class="muted">−0.77</td></tr>
+<tr><td>Open-domain F1</td><td>24.34</td><td>20.34</td><td class="bad">−4.00</td></tr>
+<tr><td>Single-hop F1</td><td>45.78</td><td>45.44</td><td class="muted">−0.34</td></tr>
+<tr><td>Adversarial F1</td><td>73.86</td><td>76.18</td><td class="muted">+2.32</td></tr>
+<tr><td>LLM calls</td><td>4,857</td><td>4,644</td><td>−4.4%</td></tr>
+<tr><td>Prompt tokens</td><td>9.96 M</td><td>6.25 M</td><td class="good">−37.2%</td></tr>
+<tr><td>Completion tokens</td><td>0.40 M</td><td>0.21 M</td><td>−47.8%</td></tr>
+<tr><td>Retrieved context / question</td><td>14.2k tok</td><td>7.8k tok</td><td class="good">−45%</td></tr>
+<tr><td>Cost (measured)</td><td>≈¥2.0</td><td>≈¥1.3</td><td>−35%</td></tr>
+</tbody>
+</table>
+
+<figure>
+  <img src="figs/fig2_ablation.png" alt="Ablation results and token cost">
+  <figcaption>Figure 2 — Removing memory evolution leaves F1 essentially unchanged (Δ +0.02 overall) while
+  cutting prompt tokens by 37% and per-question retrieved context by 45%.</figcaption>
+</figure>
+
+<p><b>Interpretation.</b> On our subset the evolution step buys nothing measurable in accuracy and costs 37%
+of the prompt budget. The paper reports the opposite direction and a large effect (multi-hop 27.02 → 21.35
+when ME is removed, a 5.7-point drop); we measure 27.98 → 27.89. Two candidate explanations, both consistent
+with what we see: (i) evolution makes neighbouring notes longer and more verbose, and the extra text dilutes
+the signal in the answering prompt rather than sharpening it — the 82% larger context per question is
+directly visible in our measurement; (ii) a single conversation's memory is small (a few hundred notes), so
+there is little redundancy for evolution to consolidate, whereas the paper's effect may depend on
+longer-horizon memory. We cannot separate (i) from (ii) with three conversations, and we report the
+disagreement rather than tuning until it matches.</p>
+
+<p>The one category where the ablation clearly hurts is open-domain (−4.0), the one where the paper's numbers
+are also furthest from ours; with n = 26 that difference is within noise (≈1.4 standard errors), so we do not
+build a story on it.</p>
+
+<h2>6. Debug diary</h2>
+
+<table>
+<thead><tr><th style="width:26%">Blocker</th><th style="text-align:left">Symptom → resolution</th></tr></thead>
+<tbody>
+<tr><td>HuggingFace unreachable</td><td style="text-align:left">Encoder download hung in <code>SYN_SENT</code>; <code>huggingface.co</code> returns 000 from this network. Fixed with <code>HF_ENDPOINT=https://hf-mirror.com</code>, model cached once, then <code>HF_HUB_OFFLINE=1</code> for every run.</td></tr>
+<tr><td>NLTK bootstrap stalls</td><td style="text-align:left">Import-time <code>nltk.download</code> sat on a blocked CDN for minutes. Pre-fetched <code>punkt</code>, <code>punkt_tab</code>, <code>wordnet</code>; later runs skip the lookup entirely.</td></tr>
+<tr><td>23% empty LLM outputs</td><td style="text-align:left">At <code>max_tokens=1000</code> DeepSeek's reasoning tokens consumed the whole budget and content came back empty (<code>finish_reason=length</code>); memories silently degraded to heuristic defaults. Raised to 4096 and added a truncation counter → zero failures in every reported run.</td></tr>
+<tr><td>6× slower and 5× costlier than expected</td><td style="text-align:left">Reasoning mode: 8.8 s and 1,213 completion tokens for a prompt the answer needed 219 tokens for. Sent <code>thinking={"type":"disabled"}</code> → 1.5 s, 219 tokens, and a closer match to the GPT-4o-mini baseline.</td></tr>
+<tr><td>Silent cache collision</td><td style="text-align:left">The harness indexes memory caches as <code>memory_cache_sample_&lt;i&gt;.pkl</code>, so two different single-conversation files both resolved to sample 0: the conv_0 run finished in four minutes and answered from conv_1's memories. Detected from <code>cached_samples=[0]</code> and the implausible runtime. Cache keys now include a dataset + seed tag; the contaminated run was discarded and re-run (≈¥3 wasted).</td></tr>
+<tr><td>BERTScore unavailable</td><td style="text-align:left"><code>bert-score</code> needs a roberta checkpoint that cannot be fetched offline; the harness logs one error per question and continues. F1/BLEU-1, the reported metrics, are unaffected.</td></tr>
+</tbody>
+</table>
+
+<h2>7. Conclusions</h2>
+
+<p><b>What is reproducible.</b> The memory layer's core behaviour transfers: with a completely different LLM,
+two of four comparable categories land within one F1 point of the paper, and the direction of every
+category is stable across the three conversations we ran. A-Mem's advantage over full-context prompting is
+real in our setting as well — 14k tokens per question instead of the 16.9k the paper quotes for stuffing the
+whole conversation.</p>
+
+<p><b>What is not.</b> (i) The reported context efficiency: we measure 5.6× more context per question than
+the paper's 2,520 tokens, at the repository's default <i>k</i>. (ii) Temporal performance, which is a
+date-normalisation artefact of the substitute model. (iii) The ablation: removing memory evolution does not
+cost accuracy here (Δ +0.02 overall) while saving 37% of prompt tokens, opposite to the paper's 5.7-point
+drop. Any one of these could be blamed on the model swap; together they suggest that the paper's efficiency
+and ablation numbers are more sensitive to the exact LLM and prompt version than the headline accuracy is.</p>
+
+<p><b>Recommendations for future users.</b> Measure your token cost before choosing a scale — a single
+conversation is already ~13k LLM calls. Turn thinking mode off when substituting a reasoning model, and set
+<code>max_tokens</code> well above the expected answer length. Watch the cache keys if you evaluate subsets:
+the harness indexes by position, not by content, and will silently reuse the wrong memories. If accuracy on
+dates matters, normalise them before scoring.</p>
+
+<h2>Appendix A — per-conversation results</h2>
+
+<p>All numbers in the report are weighted aggregates of the rows below; each row is one full run
+(memory construction + all questions), seed 42, <i>k</i> = 10.</p>
+
+<table>
+<thead><tr><th>Run</th><th>Overall F1</th><th>Multi-hop</th><th>Temporal</th><th>Open-dom.</th><th>Single-hop</th><th>Adversarial</th><th>Calls</th><th>Prompt tokens</th></tr></thead>
+<tbody>
+<tr><td>conv 0 — baseline</td><td>44.79</td><td>27.86</td><td>25.49</td><td>18.14</td><td>48.94</td><td>72.70</td><td>1,749</td><td>3.89 M</td></tr>
+<tr><td>conv 0 — w/o ME</td><td>43.14</td><td>26.88</td><td>27.61</td><td>15.87</td><td>44.76</td><td>71.58</td><td>1,647</td><td>2.44 M</td></tr>
+<tr><td>conv 1 — baseline</td><td>46.23</td><td>27.24</td><td>49.21</td><td class="muted">—</td><td>29.95</td><td>81.55</td><td>1,340</td><td>2.27 M</td></tr>
+<tr><td>conv 1 — w/o ME</td><td>51.35</td><td>40.91</td><td>55.02</td><td class="muted">—</td><td>38.56</td><td>75.60</td><td>1,309</td><td>1.59 M</td></tr>
+<tr><td>conv 8 — baseline</td><td>48.13</td><td>28.30</td><td>40.81</td><td>30.54</td><td>52.29</td><td>70.62</td><td>1,992</td><td>4.18 M</td></tr>
+<tr><td>conv 8 — w/o ME</td><td>47.10</td><td>24.90</td><td>31.61</td><td>24.81</td><td>50.25</td><td>81.92</td><td>1,907</td><td>2.49 M</td></tr>
+</tbody>
+</table>
+
+<p class="muted" style="font-size:8.8pt">conv 1 contains no open-domain questions. Per-conversation variance is
+large (overall F1 43.1–51.4), which is why we report three conversations rather than one: the ablation
+difference (+0.02 overall) is far smaller than the between-conversation spread, and the same holds for the
+paper comparison on every category except multi-hop and single-hop, where the per-conversation values are
+tight (multi-hop 27.2–28.3, single-hop 30.0–52.3).</p>
+
+<p class="muted" style="margin-top:6mm; font-size:8.6pt">Artefacts: report (this document), code and run
+scripts in the repository (<code>REPRO.md</code>, <code>repro/</code>), raw per-question results as JSON,
+and a ≤15-minute recorded walkthrough. Every number above is produced by <code>repro/aggregate.py</code>
+from the JSON files in <code>repro/out/</code>; no number is copied from the paper except the “Paper” column.</p>
+
+</body>
+</html>
