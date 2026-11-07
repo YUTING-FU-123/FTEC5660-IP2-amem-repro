@@ -38,6 +38,29 @@ from llm_text_parsers import (
 logger = logging.getLogger("amem_robust")
 
 # ---------------------------------------------------------------------------
+# Token accounting (added for the reproducibility study)
+# ---------------------------------------------------------------------------
+LLM_USAGE = {
+    "calls": 0,
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "cached_prompt_tokens": 0,
+}
+
+
+def _record_usage(response) -> None:
+    """Accumulate token usage reported by the API (best effort)."""
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return
+    LLM_USAGE["calls"] += 1
+    LLM_USAGE["prompt_tokens"] += getattr(usage, "prompt_tokens", 0) or 0
+    LLM_USAGE["completion_tokens"] += getattr(usage, "completion_tokens", 0) or 0
+    details = getattr(usage, "prompt_tokens_details", None)
+    cached = getattr(details, "cached_tokens", 0) if details is not None else 0
+    LLM_USAGE["cached_prompt_tokens"] += cached or 0
+
+# ---------------------------------------------------------------------------
 # Retry decorator
 # ---------------------------------------------------------------------------
 
@@ -116,8 +139,14 @@ class RobustOpenAIController(RobustBaseLLMController):
                 {"role": "user", "content": prompt}
             ],
             temperature=temperature,
-            max_tokens=1000,
+            max_tokens=int(os.getenv("AMEM_MAX_TOKENS", "4096")),
         )
+        _record_usage(response)
+        if response.choices[0].finish_reason == "length":
+            # DeepSeek's reasoning tokens count against max_tokens, so a long
+            # reasoning trace can leave no room for the answer itself.
+            FAILURES["truncated"] = FAILURES.get("truncated", 0) + 1
+            logger.warning("LLM output truncated (finish_reason=length); raise AMEM_MAX_TOKENS")
         return response.choices[0].message.content
 
 
@@ -374,9 +403,12 @@ class RobustAgenticMemorySystem:
                  sglang_host: str = "http://localhost",
                  sglang_port: int = 30000,
                  check_connection: bool = False,
-                 refresh_index: bool = False):
+                 refresh_index: bool = False,
+                 disable_memory_evolution: bool = False):
 
         self.memories: Dict[str, RobustMemoryNote] = {}
+        # ablation switch: keep link generation (the strengthen step) but never rewrite neighbours
+        self.disable_memory_evolution = disable_memory_evolution
         # re-embed neighbours as soon as evolution updates them; otherwise their embeddings stay
         # stale until consolidate_memories runs every evo_threshold evolutions (paper behaviour)
         self.refresh_index = refresh_index
@@ -506,6 +538,8 @@ class RobustAgenticMemorySystem:
 
             should_strengthen = decision["decision"] in ("STRENGTHEN", "STRENGTHEN_AND_UPDATE")
             should_update = decision["decision"] in ("UPDATE_NEIGHBOR", "STRENGTHEN_AND_UPDATE")
+            if self.disable_memory_evolution:
+                should_update = False
 
             # ---- Call 2: Strengthen details (conditional) ----
             if should_strengthen:
