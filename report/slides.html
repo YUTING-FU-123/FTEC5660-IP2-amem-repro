@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A-Mem reproducibility — slides</title>
+<style>
+  @page { size: 1280px 720px; margin: 0; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #17222b; }
+  .slide { width: 1280px; height: 720px; box-sizing: border-box; padding: 64px 76px;
+           page-break-after: always; position: relative; background: #fff; }
+  .slide:last-child { page-break-after: auto; }
+  h1 { font-size: 46px; margin: 0 0 14px 0; letter-spacing: -0.6px; line-height: 1.15; }
+  h2 { font-size: 34px; margin: 0 0 26px 0; letter-spacing: -0.3px; }
+  p, li { font-size: 22px; line-height: 1.5; }
+  ul { margin: 0; padding-left: 26px; }
+  li { margin-bottom: 14px; }
+  .kicker { font-size: 18px; letter-spacing: 1.6px; text-transform: uppercase; color: #2f6f9f; font-weight: 700; }
+  .meta { font-size: 19px; color: #5a6673; margin-top: 22px; }
+  .foot { position: absolute; left: 76px; bottom: 34px; font-size: 15px; color: #98a2ac; }
+  .num { position: absolute; right: 76px; bottom: 34px; font-size: 15px; color: #98a2ac; }
+  .row { display: flex; gap: 34px; }
+  .col { flex: 1; }
+  .card { border: 1px solid #dde3e9; border-radius: 6px; padding: 22px 24px; }
+  .card b { display: block; font-size: 40px; color: #2f6f9f; margin-bottom: 6px; }
+  .card span { font-size: 17px; color: #5a6673; }
+  table { border-collapse: collapse; width: 100%; font-size: 20px; }
+  th, td { padding: 9px 12px; border-bottom: 1px solid #e3e8ed; text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { border-bottom: 2px solid #9aa5b1; font-size: 18px; color: #3d4a56; }
+  .good { color: #1f6b3a; font-weight: 700; }
+  .bad { color: #a22b2b; font-weight: 700; }
+  .muted { color: #808a94; }
+  img { width: 100%; }
+  .small { font-size: 17px; color: #5a6673; }
+  .big-quote { font-size: 30px; line-height: 1.4; }
+  .tag { display: inline-block; font-size: 15px; padding: 4px 10px; border-radius: 12px;
+         background: #eef3f7; color: #2f6f9f; margin-right: 8px; }
+</style>
+</head>
+<body>
+
+<!-- 1 -->
+<section class="slide">
+  <div class="kicker">FTEC5660 · Individual Project 2 · Reproducibility</div>
+  <h1 style="margin-top:120px; font-size:60px;">Reproducing A-Mem</h1>
+  <h2 style="font-size:34px; color:#3d4a56; font-weight:400;">Agentic memory for LLM agents, on a student budget</h2>
+  <div class="meta" style="margin-top:90px;">YUTING FU · 1155265979 · 7 November 2026</div>
+  <div class="foot">Code: github.com/… (repro/ + REPRO.md)</div>
+  <div class="num">1 / 8</div>
+</section>
+
+<!-- 2 -->
+<section class="slide">
+  <h2>What the system does</h2>
+  <p class="small" style="margin-top:-12px;">A-Mem (NeurIPS 2025) replaces flat memory with Zettelkasten notes.</p>
+  <ul style="margin-top:26px;">
+    <li><b>Note construction</b> — keywords, tags, context for every utterance</li>
+    <li><b>Link generation</b> — connect to nearest notes</li>
+    <li><b>Memory evolution</b> — rewrite neighbours' context and tags</li>
+    <li><b>Retrieval</b> — top-k notes → answer</li>
+  </ul>
+  <p style="margin-top:30px;" class="big-quote">Multi-step, tool-calling, self-modifying → an agentic system, not a single prompt.</p>
+  <div class="foot">Official eval repo: github.com/WujiangXu/A-mem</div>
+  <div class="num">2 / 8</div>
+</section>
+
+<!-- 3 -->
+<section class="slide">
+  <h2>What we set out to reproduce</h2>
+  <ul>
+    <li>Per-category <b>token-level F1 / BLEU-1</b> on LoCoMo</li>
+    <li>Reported context cost: <b>2,520 tokens</b> per question (vs 16,910 full-context)</li>
+    <li>Subset: <b>3 of 10 conversations</b> — 1,297 utterances, 500 questions</li>
+  </ul>
+  <table style="margin-top:26px; width:70%;">
+    <thead><tr><th>Category</th><th>Paper F1</th></tr></thead>
+    <tbody>
+      <tr><td>Multi-hop</td><td>27.02</td></tr>
+      <tr><td>Temporal</td><td>45.85</td></tr>
+      <tr><td>Open-domain</td><td>12.14</td></tr>
+      <tr><td>Single-hop</td><td>44.65</td></tr>
+    </tbody>
+  </table>
+  <div class="num">3 / 8</div>
+</section>
+
+<!-- 4 -->
+<section class="slide">
+  <h2>Setup: everything is CPU + a cheap API</h2>
+  <div class="row" style="margin-top:10px;">
+    <div class="col">
+      <ul>
+        <li>MacBook Air, 8 GB, no GPU</li>
+        <li>Py 3.12, MiniLM encoder, <i>k</i> = 10</li>
+        <li><b>Model swapped</b>: GPT-4o-mini → <b>DeepSeek V4.1 Flash</b></li>
+      </ul>
+    </div>
+    <div class="col">
+      <div class="card" style="margin-bottom:14px;"><b>4096</b><span>max_tokens — at 1000 the reasoning trace ate the budget and 23% of answers came back empty</span></div>
+      <div class="card"><b>0.6 s</b><span>per call with thinking disabled, vs 8.8 s with it on (1,213 → 219 completion tokens)</span></div>
+    </div>
+  </div>
+  <p style="margin-top:28px;" class="small">Recorded as controlled variables. Results are <b>not directly comparable</b> to the paper.</p>
+  <div class="num">4 / 8</div>
+</section>
+
+<!-- 5 -->
+<section class="slide">
+  <h2>Results: two categories reproduce, two do not</h2>
+  <img src="figs/fig1_reproduction.png" style="width:74%; display:block; margin:0 auto;">
+  <div class="num">5 / 8</div>
+</section>
+
+<!-- 6 -->
+<section class="slide">
+  <h2>Why the gaps are there</h2>
+  <ul>
+    <li><b>Temporal −8.7</b>: date normalisation, not retrieval — gold “19 January, 2023”, model “Yesterday, 20 January 2023”.</li>
+    <li><b>Open-domain +12</b>: we feed ~14.2k tokens of context per question, the paper reports 2,520.</li>
+    <li><b>Context cost does not reproduce</b>: 5.6× the reported number at the repo's default <i>k</i>.</li>
+    <li><b>Adversarial not comparable</b>: harness default scores against “Not mentioned”, the paper scored against the adversarial answer.</li>
+  </ul>
+  <div class="num">6 / 8</div>
+</section>
+
+<!-- 7 -->
+<section class="slide">
+  <h2>Our modification: remove memory evolution</h2>
+  <img src="figs/fig2_ablation.png" style="width:82%; display:block; margin:0 auto 12px auto;">
+  <p class="big-quote" style="margin-top:6px;">Δ F1 = +0.02 · prompt tokens −37% · context per question −45%</p>
+  <p class="small">Paper reports the opposite: multi-hop 27.02 → 21.35 without ME.</p>
+  <div class="num">7 / 8</div>
+</section>
+
+<!-- 8 -->
+<section class="slide">
+  <h2>Lessons</h2>
+  <ul>
+    <li><span class="tag">pitfall</span> The harness caches memories <b>by sample index</b> — two subset files silently share sample 0. Tag the cache by dataset.</li>
+    <li><span class="tag">cost</span> One conversation is already ~1,700 LLM calls; measure tokens before choosing a scale.</li>
+    <li><span class="tag">model swap</span> Disable thinking and raise max_tokens, or 20% of outputs come back empty.</li>
+    <li><span class="tag">finding</span> Accuracy reproduces within ~1 point; <b>efficiency and ablation claims do not</b>.</li>
+  </ul>
+  <p style="margin-top:34px;" class="small">Report · repository · raw per-question JSON in <code>repro/out/</code></p>
+  <div class="num">8 / 8</div>
+</section>
+
+</body>
+</html>
