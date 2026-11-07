@@ -83,7 +83,7 @@ script, metrics and prompts unmodified.</p>
 <tr><td>Data</td><td style="text-align:left"><code>data/locomo10.json</code> shipped with the repository — no external download</td></tr>
 <tr><td>Retrieval</td><td style="text-align:left"><i>k</i> = 10 (repository default), memory scope = per conversation</td></tr>
 <tr><td>Wall-clock</td><td style="text-align:left">35–50 min per conversation-arm, two arms in parallel</td></tr>
-<tr><td>Cost</td><td style="text-align:left">≈ ¥2 per conversation-arm (13,000 LLM calls, 10.0M prompt tokens for 500 questions)</td></tr>
+<tr><td>Cost</td><td style="text-align:left">≈ ¥2 per conversation-arm; 4,857 LLM calls and 10.0M prompt tokens for the 500-question baseline</td></tr>
 </tbody>
 </table>
 
@@ -253,7 +253,7 @@ drop. Any one of these could be blamed on the model swap; together they suggest 
 and ablation numbers are more sensitive to the exact LLM and prompt version than the headline accuracy is.</p>
 
 <p><b>Recommendations for future users.</b> Measure your token cost before choosing a scale — a single
-conversation is already ~13k LLM calls. Turn thinking mode off when substituting a reasoning model, and set
+conversation is already 1,300–2,000 LLM calls and ~2–4M prompt tokens. Turn thinking mode off when substituting a reasoning model, and set
 <code>max_tokens</code> well above the expected answer length. Watch the cache keys if you evaluate subsets:
 the harness indexes by position, not by content, and will silently reuse the wrong memories. If accuracy on
 dates matters, normalise them before scoring.</p>
