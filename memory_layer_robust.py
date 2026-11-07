@@ -140,6 +140,10 @@ class RobustOpenAIController(RobustBaseLLMController):
             ],
             temperature=temperature,
             max_tokens=int(os.getenv("AMEM_MAX_TOKENS", "4096")),
+            extra_body=(
+                {"thinking": {"type": "disabled"}}
+                if os.getenv("AMEM_DISABLE_THINKING", "1") == "1" else None
+            ),
         )
         _record_usage(response)
         if response.choices[0].finish_reason == "length":
