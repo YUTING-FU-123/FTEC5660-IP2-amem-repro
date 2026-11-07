@@ -242,7 +242,10 @@ def evaluate_dataset(dataset_path: str, model: str, output_path: Optional[str] =
     # cache key includes the dataset tag: the harness indexes caches by position
     # inside the dataset, so two different single-conversation files would
     # otherwise share sample 0 and silently reuse each other's memories
-    dataset_tag = re.sub(r"[^A-Za-z0-9]+", "-", os.path.splitext(os.path.basename(dataset_path))[0])
+    dataset_tag = "{}_{}".format(
+        re.sub(r"[^A-Za-z0-9]+", "-", os.path.splitext(os.path.basename(dataset_path))[0]),
+        "seed{}".format(seed),
+    )
     memories_dir = os.path.join(
         os.path.dirname(__file__),
         "cached_memories_robust_{}_{}{}{}_{}".format(
@@ -350,6 +353,10 @@ def evaluate_dataset(dataset_path: str, model: str, output_path: Optional[str] =
                     "category": qa.category,
                     "adversarial_answer": qa.adversarial_answer,
                     "metrics": metrics,
+                    # character counts of the retrieved memory context and of the full
+                    # answering prompt (a token estimate is chars/4)
+                    "raw_context_chars": len(raw_context or ""),
+                    "user_prompt_chars": len(user_prompt or ""),
                 }
                 results.append(result)
 
