@@ -75,7 +75,15 @@ ax1.set_title("Ablation: removing memory evolution")
 ax1.legend(frameon=False, fontsize=9)
 ax1.spines[["top", "right"]].set_visible(False)
 
-tokens = [9.96, 6.25]
+def total_prompt_tokens(pattern):
+    total = 0
+    for f in sorted(glob.glob(os.path.join(ROOT, "repro", "out", pattern))):
+        total += json.load(open(f)).get("llm_usage", {}).get("prompt_tokens", 0)
+    return total / 1e6
+
+
+tokens = [total_prompt_tokens("conv*_full_deepseek-flash_k10_s42.json"),
+          total_prompt_tokens("conv*_nome_deepseek-flash_k10_s42.json")]
 ax2.bar(["baseline", "w/o ME"], tokens, color=["#2f6f9f", "#c98b3a"], width=0.55)
 for i, t in enumerate(tokens):
     ax2.text(i, t + 0.2, f"{t:.2f}M", ha="center", fontsize=9)

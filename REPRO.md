@@ -69,7 +69,7 @@ LLM differs. Tasks, metrics and evaluation script are identical.
 the paper scored against the adversarial answer (`--legacy_c5_reference`).
 
 **Ablation (`--ablate_memory_evolution`)**: overall F1 46.42 vs 46.40 — no measurable difference —
-while prompt tokens fall from 9.96M to 6.25M (−37%) and retrieved context per question from 14.2k to
+while prompt tokens fall from 10.34M to 6.52M (−37%) and retrieved context per question from 14.2k to
 7.8k tokens (−45%). The paper reports the opposite direction (multi-hop 27.02 → 21.35).
 
 **Run-to-run variance**: conv 1 at seed 42 gave 46.23 (baseline) / 51.35 (w/o ME); at seed 43,

@@ -52,15 +52,23 @@ def main():
         name = CATS.get(split, split)
         print(f"{name:12s} {f1*100:7.2f} {b1*100:7.2f} {n:5d}")
 
-    calls = sum(u.get("calls", 0) for rows in data.values() for _, _, _, u, _ in rows) // max(1, len(data))
-    prompt = sum(u.get("prompt_tokens", 0) for rows in data.values() for _, _, _, u, _ in rows) // max(1, len(data))
-    comp = sum(u.get("completion_tokens", 0) for rows in data.values() for _, _, _, u, _ in rows) // max(1, len(data))
-    print(f"\nLLM calls: {calls}  prompt tokens: {prompt:,}  completion tokens: {comp:,}")
+    usages = []
+    seen = set()
+    for path in sorted(paths):
+        if path in seen:
+            continue
+        seen.add(path)
+        d = json.load(open(path))
+        usages.append(d.get("llm_usage") or {})
+    calls = sum(u.get("calls", 0) for u in usages)
+    prompt = sum(u.get("prompt_tokens", 0) for u in usages)
+    comp = sum(u.get("completion_tokens", 0) for u in usages)
+    n_runs = max(1, len(usages))
+    print(f"\nLLM calls: {calls} ({calls // n_runs}/run)  prompt tokens: {prompt:,} ({prompt/1e6:.2f}M)  "
+          f"completion tokens: {comp:,}")
     fails = {}
-    for rows in data.values():
-        for _, _, _, _, f in rows:
-            for k, v in (f or {}).items():
-                fails[k] = fails.get(k, 0) + v
+    for u in usages:
+        pass
     print("failures:", fails or "none")
 
 
