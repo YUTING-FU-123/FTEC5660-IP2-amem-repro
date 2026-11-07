@@ -16,6 +16,7 @@ from llm_text_parsers import (
 )
 import os
 import json
+import re
 import argparse
 import logging
 from typing import List, Dict, Optional
@@ -238,12 +239,17 @@ def evaluate_dataset(dataset_path: str, model: str, output_path: Optional[str] =
 
     i = 0
     error_num = 0
+    # cache key includes the dataset tag: the harness indexes caches by position
+    # inside the dataset, so two different single-conversation files would
+    # otherwise share sample 0 and silently reuse each other's memories
+    dataset_tag = re.sub(r"[^A-Za-z0-9]+", "-", os.path.splitext(os.path.basename(dataset_path))[0])
     memories_dir = os.path.join(
         os.path.dirname(__file__),
-        "cached_memories_robust_{}_{}{}{}".format(
+        "cached_memories_robust_{}_{}{}{}_{}".format(
             backend, model,
             "_refresh" if refresh_index else "",
             "_noME" if disable_memory_evolution else "",
+            dataset_tag,
         ),
     )
     os.makedirs(memories_dir, exist_ok=True)
