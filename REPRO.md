@@ -1,3 +1,7 @@
+**Deliverables** — report `report/FTEC5660_IP2_Reproducibility_YutingFu.pdf` (6 pages); deck
+`report/AMem_Presentation_13slides.pptx`; recorded walkthrough https://youtu.be/5JYdON59JTg (14:45,
+unlisted).
+
 # Reproducibility study: A-Mem on LoCoMo (DeepSeek backend)
 
 This repository is a fork of [`WujiangXu/A-mem`](https://github.com/WujiangXu/A-mem), the

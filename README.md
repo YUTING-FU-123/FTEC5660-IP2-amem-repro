@@ -1,8 +1,10 @@
 > **FTEC5660 Individual Project 2 — Reproducibility (YUTING FU, 1155265979).**
 > This fork reproduces the paper's LoCoMo results with a DeepSeek backend, adds an
 > ablation switch for the memory-evolution step, and ships the write-up.
-> Start at **[REPRO.md](REPRO.md)**; the final report is
-> [`report/FTEC5660_IP2_Reproducibility_YutingFu.pdf`](report/FTEC5660_IP2_Reproducibility_YutingFu.pdf).
+> Start at **[REPRO.md](REPRO.md)**. Deliverables: the report
+> [`report/FTEC5660_IP2_Reproducibility_YutingFu.pdf`](report/FTEC5660_IP2_Reproducibility_YutingFu.pdf),
+> the 13-slide deck [`report/AMem_Presentation_13slides.pptx`](report/AMem_Presentation_13slides.pptx),
+> and the recorded walkthrough (14:45, unlisted): https://youtu.be/5JYdON59JTg
 
 # Agentic Memory 🧠
 
