@@ -6,6 +6,29 @@
 > the 13-slide deck [`report/AMem_Presentation_13slides.pptx`](report/AMem_Presentation_13slides.pptx),
 > and the recorded walkthrough (14:45, unlisted): https://youtu.be/5JYdON59JTg
 
+## Quick start — reproducing this project
+
+```bash
+git clone git@github.com:YUTING-FU-123/FTEC5660-IP2-amem-repro.git
+cd FTEC5660-IP2-amem-repro
+python3.12 -m venv .venv && . .venv/bin/activate
+pip install -r requirements.txt
+
+export HF_ENDPOINT=https://hf-mirror.com      # huggingface.co is unreachable on some networks
+export OPENAI_API_KEY=<your DeepSeek key>     # no key is committed to this repository
+export OPENAI_BASE_URL=https://api.deepseek.com/v1
+
+python repro/split_dataset.py --indices 0 1 8 # one dataset file per conversation
+./repro/run_conv.sh 0                         # baseline (memory evolution ON)
+./repro/run_conv.sh 0 --no-me                 # ablation (memory evolution OFF)
+python repro/aggregate.py repro/out/conv*_full*.json
+```
+
+`run_conv.sh` wraps `test_advanced_robust.py`; the ablation flag itself is
+`--ablate_memory_evolution`. Results land in `repro/out/`. Measured numbers, the
+cost/runtime budget and the debug diary are in [REPRO.md](REPRO.md) and the
+[report](report/FTEC5660_IP2_Reproducibility_YutingFu.pdf).
+
 # Agentic Memory 🧠
 
 A novel agentic memory system for LLM agents that can dynamically organize memories in an agentic way.
